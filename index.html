@@ -2211,7 +2211,7 @@ function parseWeekText(text) {
 
     for (var k = 0; k < block.lines.length; k++) {
       var kline = block.lines[k];
-      var taskMatch = kline.match(/^\[TASK:\s*(\w+)\s*\]$/i);
+      var taskMatch = kline.match(/^\[TASK:\s*([\w-]+)\s*\]$/i);
       if (taskMatch) {
         var flushed = flushTask(abbr, focusProject, taskLines, inTask);
         if (flushed) tasks.push(flushed);
