@@ -890,28 +890,29 @@ FOCUS_PROJECT: [short-slug — e.g. "product-launch", "content-engine", "client-
 OUTPUT_TARGET: [one tangible deliverable]
 
 [TASK: DW1]
-TITLE: [task title]
-- [subtask 1]
-- [subtask 2]
-- [subtask 3]
+TITLE: Write the core module
+- Draft the function signatures
+- Implement the main logic
+- Write unit tests
+- Review and refactor
 
 [TASK: DW2]
-TITLE: [task title]
-- [subtask 1]
-- [subtask 2]
-- [subtask 3]
+TITLE: Second priority task
+- Step one of this task
+- Step two of this task
+- Step three of this task
 
 [TASK: CREATIVE]
-TITLE: [task title]
-- [subtask 1]
-- [subtask 2]
-- [subtask 3]
+TITLE: Creative output task
+- Step one
+- Step two
+- Step three
 
 [TASK: DIST]
-TITLE: [task title]
-- [subtask 1]
-- [subtask 2]
-- [subtask 3]
+TITLE: Ship and distribute
+- Step one
+- Step two
+- Step three
 
 [END_DAY]
 
@@ -923,7 +924,7 @@ TITLE: [task title]
 
 Output rules — follow exactly:
 - Labels: WEEK_START, [DAY:], DATE:, MISSION:, FOCUS_PROJECT:, OUTPUT_TARGET:, [TASK:], TITLE:, [END_DAY]
-- Subtasks: each starts with "- " (dash then space)
+- Subtasks MUST start with "- " (a hyphen then a space). Never use •, *, numbers (1.), or em-dashes (—).
 - FOCUS_PROJECT: use a short lowercase slug with hyphens, no spaces
 - No text before WEEK_START, no text after the last [END_DAY]
 - 3–5 subtasks per task block
