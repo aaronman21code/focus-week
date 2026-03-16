@@ -328,8 +328,8 @@ a{color:var(--accent);text-decoration:none}
 .timer-btn.primary{background:currentColor}
 .timer-btn.primary .lbl{color:#000}
 .timer-timesup{font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-top:4px;color:var(--accent)}
-.focus-mode-btn{padding:5px 12px;border-radius:5px;font-size:11px;font-weight:600;border:1px solid var(--border);color:var(--text-muted);background:transparent;cursor:pointer}
-.focus-mode-btn:hover{color:var(--text);border-color:var(--text-muted)}
+.focus-mode-btn{padding:7px 16px;border-radius:5px;font-size:12px;font-weight:700;border:1px solid var(--accent);color:var(--accent);background:var(--accent-dim, rgba(99,102,241,0.12));cursor:pointer;transition:background 0.15s,color 0.15s}
+.focus-mode-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 .cbc-header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 
 /* ============ FOCUS OVERLAY ============ */
@@ -362,8 +362,8 @@ a{color:var(--accent);text-decoration:none}
 .timer-btn.primary{background:currentColor}
 .timer-btn.primary .lbl{color:#000}
 .timer-timesup{font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-top:4px;color:var(--accent)}
-.focus-mode-btn{padding:5px 12px;border-radius:5px;font-size:11px;font-weight:600;border:1px solid var(--border);color:var(--text-muted);background:transparent;cursor:pointer}
-.focus-mode-btn:hover{color:var(--text);border-color:var(--text-muted)}
+.focus-mode-btn{padding:7px 16px;border-radius:5px;font-size:12px;font-weight:700;border:1px solid var(--accent);color:var(--accent);background:var(--accent-dim, rgba(99,102,241,0.12));cursor:pointer;transition:background 0.15s,color 0.15s}
+.focus-mode-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 .cbc-header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 
 /* ============ FOCUS OVERLAY ============ */
@@ -396,8 +396,8 @@ a{color:var(--accent);text-decoration:none}
 .timer-btn.primary{background:currentColor}
 .timer-btn.primary .lbl{color:#000}
 .timer-timesup{font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-top:4px;color:var(--accent)}
-.focus-mode-btn{padding:5px 12px;border-radius:5px;font-size:11px;font-weight:600;border:1px solid var(--border);color:var(--text-muted);background:transparent;cursor:pointer}
-.focus-mode-btn:hover{color:var(--text);border-color:var(--text-muted)}
+.focus-mode-btn{padding:7px 16px;border-radius:5px;font-size:12px;font-weight:700;border:1px solid var(--accent);color:var(--accent);background:var(--accent-dim, rgba(99,102,241,0.12));cursor:pointer;transition:background 0.15s,color 0.15s}
+.focus-mode-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 .cbc-header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 
 /* ============ FOCUS OVERLAY ============ */
@@ -517,6 +517,12 @@ input[type="file"]{display:none}
 .plan-preview-mission{font-size:11px;color:var(--text-muted);margin:3px 0 4px;font-style:italic}
 .plan-preview-task{font-size:11px;color:var(--text-muted);padding:1px 0 1px 8px}
 .plan-preview-sub-count{color:var(--text-dim)}
+@keyframes btn-pulse{0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,0.55)}50%{box-shadow:0 0 0 6px rgba(99,102,241,0)}}
+.btn-highlight{border-color:var(--accent)!important;color:var(--accent)!important;animation:btn-pulse 1.4s ease-in-out infinite}
+.inline-edit-btn{opacity:0;padding:1px 5px;border:none;background:none;cursor:pointer;color:var(--text-dim);font-size:11px;line-height:1;transition:opacity 0.1s;flex-shrink:0}
+.task-header:hover .inline-edit-btn,.subtask-item:hover .inline-edit-btn{opacity:1}
+.inline-edit-btn:hover{color:var(--accent)}
+.inline-edit-input{background:var(--surface2);border:1px solid var(--accent);border-radius:3px;color:var(--text);font-size:inherit;font-family:inherit;padding:1px 6px;outline:none}
 .plan-banner-empty,.plan-banner-ready{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .plan-banner-label{font-size:13px;font-weight:600;color:var(--text)}
 .plan-banner-info{font-size:11px;color:var(--text-muted);margin-top:2px}
@@ -1526,6 +1532,17 @@ function renderTaskPanel() {
   const prog = getProgress(dayId);
   let html = '';
 
+  // Mission row (editable)
+  html += `<div class="task-group" style="border-left:3px solid var(--border);margin-bottom:4px">
+    <div class="task-header" style="cursor:default">
+      <div class="task-header-left" style="gap:6px">
+        <span style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;flex-shrink:0">Mission</span>
+        <span class="editable-mission" style="font-size:12px;color:var(--text-muted);font-style:italic">${escapeHTML(day.mission)}</span>
+        <button class="inline-edit-btn" data-edit-mission="${dayId}" title="Edit mission">✎</button>
+      </div>
+    </div>
+  </div>`;
+
   day.tasks.forEach(task => {
     const tp = prog.tasks[task.id] || { completed: false, subtasks: {} };
     const isOpen = !collapsedTasks[task.id];
@@ -1536,7 +1553,6 @@ function renderTaskPanel() {
 
     const cbClass = tp.completed ? 'checked' : '';
     const nameClass = tp.completed ? 'completed' : '';
-    const projColor = project && project.colorTag === 'blue' ? 'var(--blue)' : 'var(--purple)';
 
     // Count subtask completion
     let sDone = 0, sTotal = task.subtasks.length;
@@ -1548,8 +1564,9 @@ function renderTaskPanel() {
       <div class="task-header" data-task-toggle="${task.id}">
         <div class="task-header-left">
           <div class="task-checkbox ${cbClass}" data-task-check="${task.id}" data-day="${dayId}"></div>
-          <span class="task-name ${nameClass}">${task.title}</span>
-          <span class="block-type-tag ${blockTypeClass}" style="font-size:10px">${blockLabel}</span>
+          <span class="task-name ${nameClass}">${escapeHTML(task.title)}</span>
+          <span class="block-type-tag ${blockTypeClass}" style="font-size:10px">${escapeHTML(blockLabel)}</span>
+          <button class="inline-edit-btn" data-edit-task="${task.id}|${dayId}" title="Edit task">✎</button>
         </div>
         ${stLabel}
         <span class="collapse-arrow ${isOpen ? 'open' : ''}">▼</span>
@@ -1561,7 +1578,8 @@ function renderTaskPanel() {
         const done = tp.subtasks && tp.subtasks[sub.id];
         html += `<div class="subtask-item">
           <div class="subtask-cb ${done ? 'checked' : ''}" data-subtask-check="${sub.id}" data-task="${task.id}" data-day="${dayId}"></div>
-          <span class="subtask-label ${done ? 'completed' : ''}">${sub.label}</span>
+          <span class="subtask-label ${done ? 'completed' : ''}">${escapeHTML(sub.label)}</span>
+          <button class="inline-edit-btn" data-edit-subtask="${sub.id}|${task.id}|${dayId}" title="Edit subtask">✎</button>
         </div>`;
       });
       html += `</div>`;
@@ -2368,7 +2386,6 @@ function getPlanPrompt() {
   ctx.push('--- YOUR SCHEDULE CONTEXT ---');
   ctx.push('Wake time: ' + (s.wakeTime || '07:30'));
   ctx.push('Sleep time: ' + (s.sleepTime || '22:00'));
-  ctx.push('Phone lock until: ' + (s.phoneUnlockTime || '17:00'));
   if (s.routineBlocks && s.routineBlocks.length) {
     ctx.push('Daily routine includes:');
     s.routineBlocks.forEach(function(b) {
@@ -2391,6 +2408,11 @@ function openPlanModal() {
   if (ta) ta.value = getPlanPrompt();
   modal.style.display = 'flex';
   showPlanStep(1);
+  // Highlight Copy Prompt as the first action to take
+  var copyBtn = document.getElementById('plan-copy-prompt-btn');
+  var nextBtn = document.getElementById('plan-go-step2-btn');
+  if (copyBtn) copyBtn.classList.add('btn-highlight');
+  if (nextBtn) nextBtn.classList.remove('btn-highlight');
 }
 
 function closePlanModal() {
@@ -2455,15 +2477,38 @@ function confirmPlanImport() {
   var confirmBtn = document.getElementById('plan-confirm-btn');
   if (!confirmBtn || !confirmBtn.dataset.parsed) return;
   var parsed = JSON.parse(confirmBtn.dataset.parsed);
-  STATE.nextWeekData = parsed;
+
   if (window._parsedSchema && window._parsedSchema.length) {
     STATE.settings.customWorkBlocks = window._parsedSchema;
     window._parsedSchema = null;
   }
+
+  // If a week plan already exists, warn before replacing
+  var hasExisting = WEEK_DATA.some(function(d) { return d.tasks.length > 0; });
+  if (hasExisting && !confirm('Load this plan? Current week progress will be reset. Score history and notes are preserved.')) return;
+
+  // Apply plan directly — no intermediate "Load Next Week" step needed
+  WEEK_DATA = parsed;
+  var preserved = {
+    scoreHistory: STATE.scoreHistory,
+    blockNotes: STATE.blockNotes,
+    review: STATE.review,
+    ideas: STATE.ideas,
+    settings: JSON.parse(JSON.stringify(STATE.settings))
+  };
+  STATE = buildDefaultState();
+  STATE.scoreHistory = preserved.scoreHistory;
+  STATE.blockNotes = preserved.blockNotes;
+  STATE.review = preserved.review;
+  STATE.ideas = preserved.ideas;
+  STATE.settings = preserved.settings;
+  STATE.onboarded = true;
+  buildBlocksTemplate(STATE.settings);
   saveState();
   closePlanModal();
-  renderReviewTab();
-  showAlert('Next week plan saved. Click "Load Next Week" when ready.');
+  switchTab('today');
+  render();
+  showAlert("Plan loaded. Let's go!");
 }
 
 // ============================================================
@@ -2738,6 +2783,33 @@ function addIdea(text) {
 }
 
 // ============================================================
+// INLINE EDITING
+// ============================================================
+
+function startInlineEdit(el, currentValue, onSave) {
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'inline-edit-input';
+  input.value = currentValue;
+  input.style.width = Math.max(el.offsetWidth, 120) + 'px';
+  el.parentNode.replaceChild(input, el);
+  input.focus();
+  input.select();
+  var saved = false;
+  function save() {
+    if (saved) return;
+    saved = true;
+    var val = input.value.trim();
+    onSave(val || currentValue);
+  }
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = currentValue; input.blur(); }
+  });
+}
+
+// ============================================================
 // EVENT HANDLING
 // ============================================================
 
@@ -2786,9 +2858,48 @@ document.addEventListener('click', function(e) {
     saveState(); render(); return;
   }
 
+  // Inline edit: day mission
+  if (t.dataset.editMission) {
+    var emDayId = t.dataset.editMission;
+    var emDay = WEEK_DATA.find(function(d) { return d.id === emDayId; });
+    if (!emDay) return;
+    var emEl = t.previousElementSibling;
+    startInlineEdit(emEl, emDay.mission, function(val) {
+      emDay.mission = val; saveState(); renderTaskPanel(); renderHeader();
+    });
+    return;
+  }
+
+  // Inline edit: task title
+  if (t.dataset.editTask) {
+    var etParts = t.dataset.editTask.split('|');
+    var etTaskId = etParts[0], etDayId = etParts[1];
+    var etDay = WEEK_DATA.find(function(d) { return d.id === etDayId; });
+    var etTask = etDay && etDay.tasks.find(function(tk) { return tk.id === etTaskId; });
+    if (!etTask) return;
+    startInlineEdit(t.previousElementSibling, etTask.title, function(val) {
+      etTask.title = val; saveState(); renderTaskPanel();
+    });
+    return;
+  }
+
+  // Inline edit: subtask label
+  if (t.dataset.editSubtask) {
+    var esParts = t.dataset.editSubtask.split('|');
+    var esSubId = esParts[0], esTaskId = esParts[1], esDayId = esParts[2];
+    var esDay = WEEK_DATA.find(function(d) { return d.id === esDayId; });
+    var esTask = esDay && esDay.tasks.find(function(tk) { return tk.id === esTaskId; });
+    var esSub = esTask && esTask.subtasks.find(function(s) { return s.id === esSubId; });
+    if (!esSub) return;
+    startInlineEdit(t.previousElementSibling, esSub.label, function(val) {
+      esSub.label = val; saveState(); renderTaskPanel();
+    });
+    return;
+  }
+
   // Task toggle (collapse)
   const taskToggle = t.closest('[data-task-toggle]');
-  if (taskToggle && !t.dataset.taskCheck) {
+  if (taskToggle && !t.dataset.taskCheck && !t.dataset.editTask) {
     const tid = taskToggle.dataset.taskToggle;
     collapsedTasks[tid] = !collapsedTasks[tid];
     render(); return;
@@ -2916,12 +3027,20 @@ document.addEventListener('click', function(e) {
       navigator.clipboard.writeText(ta2.value).catch(function() { ta2.select(); document.execCommand('copy'); });
       t.textContent = 'Copied!';
       setTimeout(function() { t.textContent = 'Copy Prompt'; }, 2000);
+      // Move highlight to the "I have my plan" button
+      t.classList.remove('btn-highlight');
+      var nextBtn3 = document.getElementById('plan-go-step2-btn');
+      if (nextBtn3) nextBtn3.classList.add('btn-highlight');
     }
     return;
   }
 
   // Plan modal — step navigation
-  if (t.id === 'plan-go-step2-btn') { showPlanStep(2); return; }
+  if (t.id === 'plan-go-step2-btn') {
+    t.classList.remove('btn-highlight');
+    showPlanStep(2);
+    return;
+  }
   if (t.id === 'plan-back-btn') { showPlanStep(1); return; }
 
   // Plan modal — parse & confirm
