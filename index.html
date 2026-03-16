@@ -924,7 +924,7 @@ TITLE: Ship and distribute
 
 Output rules — follow exactly:
 - Labels: WEEK_START, [DAY:], DATE:, MISSION:, FOCUS_PROJECT:, OUTPUT_TARGET:, [TASK:], TITLE:, [END_DAY]
-- Subtasks MUST start with "- " (a hyphen then a space). Never use •, *, numbers (1.), or em-dashes (—).
+- Subtasks: use a standard bullet list (-, *, or •) — one item per line
 - FOCUS_PROJECT: use a short lowercase slug with hyphens, no spaces
 - No text before WEEK_START, no text after the last [END_DAY]
 - 3–5 subtasks per task block
@@ -2109,15 +2109,15 @@ function parseWeekText(text) {
         if (tlines[z].startsWith('TITLE:')) { titleLine = tlines[z].slice(6).trim(); break; }
       }
       if (!titleLine) throw new Error('Missing TITLE: in [TASK: ' + tslot + '] on day "' + dayName + '"');
-      var subs = tlines.filter(function(l) { return l.startsWith('- '); });
-      if (!subs.length) throw new Error('No subtasks in [TASK: ' + tslot + '] on day "' + dayName + '". Add lines starting with "- "');
+      var subs = tlines.filter(function(l) { return /^[-*•] /.test(l); });
+      if (!subs.length) throw new Error('No subtasks in [TASK: ' + tslot + '] on day "' + dayName + '". Add bullet lines (-, *, or •)');
       var taskId = abb + '-' + tslot.toLowerCase();
       return {
         id: taskId,
         blockId: slot.blockId,
         projectId: proj || 'project-a',
         title: titleLine,
-        subtasks: subs.map(function(l, idx) { return { id: taskId + '-s' + (idx + 1), label: l.slice(2).trim() }; })
+        subtasks: subs.map(function(l, idx) { return { id: taskId + '-s' + (idx + 1), label: l.replace(/^[-*•] /, '').trim() }; })
       };
     }
 
