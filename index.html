@@ -2859,8 +2859,8 @@ document.addEventListener('click', function(e) {
   // Load next week
   if (t.id === 'load-next-week-btn') { loadNextWeek(); return; }
 
-  // Routine toggle cards
-  if (t.classList && t.classList.contains('routine-toggle')) {
+  // Routine toggle cards (Step 1 — lifestyle)
+  if (t.classList && t.classList.contains('routine-toggle') && t.closest('#ob-routine-toggles')) {
     t.classList.toggle('selected');
     var timesEl = document.getElementById('ob-routine-times');
     if (timesEl) {
@@ -2876,6 +2876,24 @@ document.addEventListener('click', function(e) {
       } else {
         if (row) row.remove();
       }
+    }
+    return;
+  }
+
+  // NN suggestion chips (Step 2)
+  if (t.classList && t.classList.contains('routine-toggle') && t.closest('#ob-nn-suggestions')) {
+    t.classList.toggle('selected');
+    var container = document.getElementById('ob-nn-list');
+    if (!container) return;
+    if (t.classList.contains('selected')) {
+      var nnRow = buildNNRow(t.dataset.nnId, t.dataset.nnLabel, true);
+      nnRow.dataset.suggestionId = t.dataset.nnId;
+      container.appendChild(nnRow);
+      var inp = nnRow.querySelector('.nn-setup-input');
+      if (inp) inp.focus();
+    } else {
+      var existing = container.querySelector('[data-suggestion-id="' + t.dataset.nnId + '"]');
+      if (existing) existing.remove();
     }
     return;
   }
@@ -3110,8 +3128,22 @@ if (!STATE.onboarded) openOnboarding();
         <div class="onboarding-desc">Daily habits you commit to no matter what. Check the ones you want to track, edit labels to match your routine, or add your own.</div>
       </div>
       <div class="onboarding-body">
+        <div class="routine-section-label">Quick add suggestions</div>
+        <div class="routine-toggle-grid" id="ob-nn-suggestions">
+          <div class="routine-toggle" data-nn-id="nn-cold-shower" data-nn-label="Cold shower">Cold shower</div>
+          <div class="routine-toggle" data-nn-id="nn-meditation" data-nn-label="Meditation">Meditation</div>
+          <div class="routine-toggle" data-nn-id="nn-journaling" data-nn-label="Daily journaling">Daily journaling</div>
+          <div class="routine-toggle" data-nn-id="nn-water" data-nn-label="Drink 2L water">Drink 2L water</div>
+          <div class="routine-toggle" data-nn-id="nn-no-alcohol" data-nn-label="No alcohol">No alcohol</div>
+          <div class="routine-toggle" data-nn-id="nn-healthy-eat" data-nn-label="Healthy eating">Healthy eating</div>
+          <div class="routine-toggle" data-nn-id="nn-no-screens" data-nn-label="No screens before bed">No screens before bed</div>
+          <div class="routine-toggle" data-nn-id="nn-gratitude" data-nn-label="Gratitude practice">Gratitude practice</div>
+          <div class="routine-toggle" data-nn-id="nn-walk" data-nn-label="Short walk">Short walk</div>
+          <div class="routine-toggle" data-nn-id="nn-social" data-nn-label="Connect with someone">Connect with someone</div>
+        </div>
+        <div class="routine-section-label" style="margin-top:14px">Your non-negotiables</div>
         <div class="nn-setup-list" id="ob-nn-list"></div>
-        <button class="nn-add-btn" id="ob-nn-add">&#xFF0B; Add another</button>
+        <button class="nn-add-btn" id="ob-nn-add">&#xFF0B; Add your own</button>
       </div>
       <div class="onboarding-footer">
         <button class="plan-btn-secondary" id="ob-back-1">&#x2190; Back</button>
