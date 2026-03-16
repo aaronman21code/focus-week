@@ -2105,7 +2105,8 @@ function readRoutineToggles() {
     result.push({
       id: id, label: t.dataset.label,
       time: readTimeSelect('ob-rtime-' + id) || t.dataset.default,
-      duration: parseInt(t.dataset.duration, 10), type: t.dataset.type
+      duration: parseInt((document.getElementById('ob-rdur-' + id) || {}).value || t.dataset.duration, 10),
+      type: t.dataset.type
     });
   });
   document.querySelectorAll('#ob-custom-routines .custom-routine-row').forEach(function(row) {
@@ -2949,7 +2950,13 @@ document.addEventListener('click', function(e) {
           var newRow = document.createElement('div');
           newRow.className = 'routine-time-row';
           newRow.id = 'ob-trow-' + t.dataset.id;
-          newRow.innerHTML = '<span>' + t.dataset.label + '</span>' + buildTimeSelectHTML('ob-rtime-' + t.dataset.id, t.dataset.default);
+          var defDur = t.dataset.duration || '60';
+          var durOpts = ['15','30','45','60','90'].map(function(v) {
+            return '<option value="' + v + '"' + (v === defDur ? ' selected' : '') + '>' + v + ' min</option>';
+          }).join('');
+          newRow.innerHTML = '<span>' + t.dataset.label + '</span>' +
+            buildTimeSelectHTML('ob-rtime-' + t.dataset.id, t.dataset.default) +
+            '<select class="ob-time-sel ob-dur-sel" id="ob-rdur-' + t.dataset.id + '">' + durOpts + '</select>';
           timesEl.appendChild(newRow);
         }
       } else {
