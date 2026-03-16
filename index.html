@@ -547,6 +547,14 @@ input[type="file"]{display:none}
 .ob-remove-btn{font-size:12px;color:var(--text-dim);background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:3px;flex-shrink:0;line-height:1}
 .ob-remove-btn:hover{color:var(--red);background:var(--surface2)}
 .onboarding-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+.routine-section-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin:16px 0 8px}
+.routine-toggle-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+.routine-toggle{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;user-select:none;transition:border-color 0.15s,background 0.15s,color 0.15s}
+.routine-toggle.selected{border-color:var(--accent);background:var(--accent-dim, rgba(99,102,241,0.12));color:var(--accent)}
+.routine-toggle-times{padding:6px 0 2px 4px;display:flex;flex-wrap:wrap;gap:10px}
+.routine-time-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)}
+.routine-time-row input{width:110px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;outline:none}
+.routine-time-row input:focus{border-color:var(--accent)}
 
 /* ============ EMPTY WEEK STATE ============ */
 .empty-week-state{padding:32px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px}
@@ -822,14 +830,35 @@ let NN_TEMPLATE = [
 
 let BLOCKS_TEMPLATE = [];
 
+function parseTimeRange(range) {
+  var dash = range.lastIndexOf('-');
+  return { start: range.slice(0, dash).trim(), end: range.slice(dash + 1).trim() };
+}
+
 function buildBlocksTemplate(s) {
-  var wake    = s.wakeTime       || '07:30';
-  var gym     = s.gymTime        || '16:00';
+  var workTypes = ['deep-work', 'creative', 'distribution'];
+
+  // If AI-designed schema is present, use it exclusively
+  if (s.customWorkBlocks && s.customWorkBlocks.length) {
+    BLOCKS_TEMPLATE = s.customWorkBlocks.map(function(b) {
+      var tr = parseTimeRange(b.timeRange);
+      var entry = { id: 'tb-' + b.id, title: b.title, start: tr.start, end: tr.end, type: b.type };
+      if (workTypes.indexOf(b.type) !== -1) entry.taskId = b.id;
+      return entry;
+    });
+    BLOCKS_TEMPLATE.sort(function(a, b) { return timeToMins(a.start) - timeToMins(b.start); });
+    return;
+  }
+
+  // Fallback: build from settings + routineBlocks
+  var wake  = s.wakeTime  || '07:30';
+  var sleep = s.sleepTime || '22:00';
+  var gym   = s.gymTime        || '16:00';
   var gymEnd  = minsToTime(timeToMins(gym)  + 60);
-  var walk    = s.sunsetWalkTime || '17:15';
+  var walk  = s.sunsetWalkTime || '17:15';
   var walkEnd = minsToTime(timeToMins(walk) + 45);
-  var sleep   = s.sleepTime      || '22:00';
-  BLOCKS_TEMPLATE = [
+
+  var blocks = [
     { id: 'tb-morning',    title: 'Morning Routine',            start: wake,    end: '08:45', type: 'routine'                      },
     { id: 'tb-daymission', title: 'Review Day Mission',         start: '08:45', end: '09:00', type: 'routine'                      },
     { id: 'tb-dw1',        title: 'Deep Work Block 1',          start: '09:00', end: '11:30', type: 'deep-work',   taskId: 'dw1'      },
@@ -844,6 +873,18 @@ function buildBlocksTemplate(s) {
     { id: 'tb-reading',    title: 'Reading / Thinking',         start: '20:00', end: '21:00', type: 'routine'                      },
     { id: 'tb-windown',    title: 'Wind Down',                  start: '21:00', end: sleep,   type: 'routine'                      }
   ];
+
+  // Overlay user-selected routine blocks
+  if (s.routineBlocks && s.routineBlocks.length) {
+    s.routineBlocks.forEach(function(rb) {
+      var entry = { id: 'tb-' + rb.id, title: rb.label, start: rb.time, end: minsToTime(timeToMins(rb.time) + rb.duration), type: rb.type };
+      var idx = blocks.findIndex(function(b) { return b.id === 'tb-' + rb.id; });
+      if (idx !== -1) { blocks[idx] = entry; } else { blocks.push(entry); }
+    });
+    blocks.sort(function(a, b) { return timeToMins(a.start) - timeToMins(b.start); });
+  }
+
+  BLOCKS_TEMPLATE = blocks;
 }
 
 const PLAN_PROMPT = `You are a focused productivity coach helping plan an upcoming work week. Your role is to do the heavy lifting — understand what matters, reason about how to structure it, and generate a complete, concrete plan. Keep questions minimal and build the plan yourself from the answers.
@@ -864,23 +905,24 @@ From their answer, identify the 1–2 projects that deserve the most attention t
 Step 3 — Constraints:
 Ask one final question: "Anything shaping this week I should plan around? A deadline, a low-energy day, a commitment?"
 
-Step 4 — Build the plan (do not ask more questions):
-Using their answers, design the full Mon–Sat plan yourself:
-- Write a one-sentence mission for each day that captures its purpose and energy
-- Assign projects across the week with appropriate intensity (heavier days for high-focus work)
-- Pick one tangible daily output target — the thing that gets done by end of day
-- Assign 4 work block tasks per day and write 3–5 specific, concrete subtasks for each block
+Step 4 — Design the daily schedule (do not ask more questions):
+Using the user's context block (at the top of this prompt) and their project answers, design the full daily structure AND the week plan together.
 
-Block types and their character:
-  DW1 (09:00–11:30): The hardest, most important cognitive task — always the highest-leverage work
-  DW2 (11:45–13:30): Continuation of DW1 or the second major priority
-  CREATIVE (14:30–16:00): Writing, video, creative output, or high-expression work
-  DIST (18:00–19:00): Publishing, shipping, outreach, or closing loops
+First, design a daily schedule that fits the user's life:
+- Use their wake/sleep times as boundaries
+- Include their chosen routine blocks (workout, walk, etc.) at the times they specified
+- Design 2–4 work blocks that match their work style and projects (not every person needs 4 blocks)
+- Add meals, resets, and wind-down blocks where appropriate
+- Work blocks are the blocks where actual project tasks happen — choose how many and what type based on the user
 
-Use your judgment for block assignments. Not every day needs both projects — some days may focus on one.
+Then build the week:
+- Write a one-sentence mission for each day
+- Assign projects across the week with appropriate intensity
+- Pick one tangible daily output target
+- Write 3–5 specific subtasks per work block
 
 Step 5 — Present the plan:
-Summarize the plan in plain language, day by day. For each day include: the mission, which project is the focus, the output target, and the 4 task titles. Keep it readable and scannable — no long paragraphs.
+Summarize the daily schedule structure first (just the block names and times, in a simple list). Then go day by day with: mission, project focus, output target, and work block titles. Keep it scannable.
 
 Then ask: "Does this look right? Anything you'd like to adjust before I generate the data?"
 
@@ -889,36 +931,28 @@ After the user confirms (or after incorporating any adjustments), output the pla
 
 WEEK_START: [YYYY-MM-DD]
 
+[SCHEDULE_SCHEMA]
+BLOCK: block-id | Display Name | HH:MM-HH:MM | type
+BLOCK: block-id | Display Name | HH:MM-HH:MM | type
+[END_SCHEDULE_SCHEMA]
+
 [DAY: Monday]
 DATE: [YYYY-MM-DD]
 MISSION: [mission text]
-FOCUS_PROJECT: [short-slug — e.g. "product-launch", "content-engine", "client-work"]
+FOCUS_PROJECT: [short-slug]
 OUTPUT_TARGET: [one tangible deliverable]
 
-[TASK: DW1]
-TITLE: Write the core module
-- Draft the function signatures
-- Implement the main logic
-- Write unit tests
-- Review and refactor
+[TASK: block-id]
+TITLE: [task title]
+- subtask one
+- subtask two
+- subtask three
 
-[TASK: DW2]
-TITLE: Second priority task
-- Step one of this task
-- Step two of this task
-- Step three of this task
-
-[TASK: CREATIVE]
-TITLE: Creative output task
-- Step one
-- Step two
-- Step three
-
-[TASK: DIST]
-TITLE: Ship and distribute
-- Step one
-- Step two
-- Step three
+[TASK: block-id]
+TITLE: [task title]
+- subtask one
+- subtask two
+- subtask three
 
 [END_DAY]
 
@@ -928,10 +962,18 @@ TITLE: Ship and distribute
 
 (Continue through Saturday, then stop. Sunday is handled separately — do not include it.)
 
-Output rules — follow exactly:
-- Labels: WEEK_START, [DAY:], DATE:, MISSION:, FOCUS_PROJECT:, OUTPUT_TARGET:, [TASK:], TITLE:, [END_DAY]
+SCHEDULE_SCHEMA rules:
+- block-id: lowercase with hyphens (e.g. "deep-focus", "creative", "client-calls")
+- type: one of: routine, deep-work, reset, meal, creative, gym, walk, distribution
+- Include ALL blocks in the day: lifestyle, work, meals, wind-down
+- Include the user's routine blocks at their specified times
+- Only blocks with type deep-work, creative, or distribution get [TASK:] entries
+- The same schema applies to all 6 days
+
+Output rules:
+- [TASK: block-id] must match a block-id from the schema
 - Subtasks: use a standard bullet list (-, *, or •) — one item per line
-- FOCUS_PROJECT: use a short lowercase slug with hyphens, no spaces
+- FOCUS_PROJECT: short lowercase slug with hyphens
 - No text before WEEK_START, no text after the last [END_DAY]
 - 3–5 subtasks per task block
 
@@ -964,7 +1006,7 @@ function testLS() {
 const DEFAULT_SETTINGS = {
   wakeTime: '07:30', sleepTime: '22:00', phoneUnlockTime: '17:00',
   gymTime: '16:00', sunsetWalkTime: '17:15', weekStartDate: '2026-03-30', theme: 'dark',
-  lockMode: false, customNNs: null
+  lockMode: false, customNNs: null, routineBlocks: null, customWorkBlocks: null
 };
 
 function makeProgressForWeekData(weekData) {
@@ -2003,16 +2045,30 @@ function onboardingNext1() {
   var wake  = (document.getElementById('ob-wake')  || {}).value;
   var sleep = (document.getElementById('ob-sleep') || {}).value;
   var phone = (document.getElementById('ob-phone') || {}).value;
-  var gym   = (document.getElementById('ob-gym')   || {}).value;
-  var walk  = (document.getElementById('ob-walk')  || {}).value;
   if (wake)  STATE.settings.wakeTime        = wake;
   if (sleep) STATE.settings.sleepTime       = sleep;
   if (phone) STATE.settings.phoneUnlockTime = phone;
-  if (gym)   STATE.settings.gymTime         = gym;
-  if (walk)  STATE.settings.sunsetWalkTime  = walk;
+  STATE.settings.routineBlocks = readRoutineToggles();
   buildBlocksTemplate(STATE.settings);
   saveState();
   showOnboardingStep(2);
+}
+
+function readRoutineToggles() {
+  var result = [];
+  var toggles = document.querySelectorAll('#ob-routine-toggles .routine-toggle.selected');
+  toggles.forEach(function(t) {
+    var id = t.dataset.id;
+    var timeEl = document.getElementById('ob-rtime-' + id);
+    result.push({
+      id: id,
+      label: t.dataset.label,
+      time: timeEl ? timeEl.value : t.dataset.default,
+      duration: parseInt(t.dataset.duration, 10),
+      type: t.dataset.type
+    });
+  });
+  return result.length ? result : null;
 }
 
 function onboardingNext2() {
@@ -2049,6 +2105,19 @@ function parseWeekText(text) {
   const DAY_NAMES = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
   const DAY_ABBR = { monday:'mon', tuesday:'tue', wednesday:'wed', thursday:'thu', friday:'fri', saturday:'sat', sunday:'sun' };
 
+  // Extract SCHEDULE_SCHEMA (pre-pass)
+  var schemaBlocks = [];
+  var inSchema = false;
+  for (var i = 0; i < lines.length; i++) {
+    if (lines[i] === '[SCHEDULE_SCHEMA]') { inSchema = true; continue; }
+    if (lines[i] === '[END_SCHEDULE_SCHEMA]') { inSchema = false; continue; }
+    if (inSchema && lines[i].startsWith('BLOCK:')) {
+      var parts = lines[i].slice(6).split('|').map(function(p) { return p.trim(); });
+      if (parts.length >= 4) schemaBlocks.push({ id: parts[0], title: parts[1], timeRange: parts[2], type: parts[3] });
+    }
+  }
+  window._parsedSchema = schemaBlocks.length ? schemaBlocks : null;
+
   // Split into day blocks
   const dayBlocks = [];
   let curName = null;
@@ -2072,12 +2141,17 @@ function parseWeekText(text) {
     throw new Error('Expected at least 6 day blocks (Mon\u2013Sat), found ' + dayBlocks.length + '. Make sure each day ends with [END_DAY].');
   }
 
-  var TASK_SLOTS = {
-    'dw1':      { blockId: 'tb-dw1' },
-    'dw2':      { blockId: 'tb-dw2' },
-    'creative': { blockId: 'tb-creative' },
-    'dist':     { blockId: 'tb-dist' }
-  };
+  // Build TASK_SLOTS: dynamic from schema, fallback to legacy
+  var workTypes = ['deep-work', 'creative', 'distribution'];
+  var TASK_SLOTS = {};
+  var hasSchema = schemaBlocks.length > 0;
+  if (hasSchema) {
+    schemaBlocks.forEach(function(b) {
+      if (workTypes.indexOf(b.type) !== -1) TASK_SLOTS[b.id] = { blockId: 'tb-' + b.id };
+    });
+  } else {
+    TASK_SLOTS = { 'dw1':{blockId:'tb-dw1'}, 'dw2':{blockId:'tb-dw2'}, 'creative':{blockId:'tb-creative'}, 'dist':{blockId:'tb-dist'} };
+  }
 
   var result = [];
 
@@ -2117,7 +2191,7 @@ function parseWeekText(text) {
     function flushTask(abb, proj, tlines, tslot) {
       if (!tslot) return;
       var slot = TASK_SLOTS[tslot.toLowerCase()];
-      if (!slot) throw new Error('Unknown [TASK: ' + tslot + ']. Use DW1, DW2, CREATIVE, or DIST.');
+      if (!slot) { if (hasSchema) return; else throw new Error('Unknown [TASK: ' + tslot + ']. Block "' + tslot + '" not found in schema.'); }
       var titleLine = null;
       for (var z = 0; z < tlines.length; z++) {
         if (tlines[z].startsWith('TITLE:')) { titleLine = tlines[z].slice(6).trim(); break; }
@@ -2151,11 +2225,16 @@ function parseWeekText(text) {
     if (lastFlushed) tasks.push(lastFlushed);
 
     if (dayName !== 'sunday') {
-      ['dw1','dw2','creative','dist'].forEach(function(slot) {
-        if (!tasks.find(function(t) { return t.id === abbr + '-' + slot; })) {
-          throw new Error('Day "' + dayName + '" is missing [TASK: ' + slot.toUpperCase() + ']');
-        }
-      });
+      if (!hasSchema) {
+        // Legacy: require all 4 default slots
+        ['dw1','dw2','creative','dist'].forEach(function(slot) {
+          if (!tasks.find(function(t) { return t.id === abbr + '-' + slot; })) {
+            throw new Error('Day "' + dayName + '" is missing [TASK: ' + slot.toUpperCase() + ']');
+          }
+        });
+      } else if (tasks.length === 0) {
+        throw new Error('Day "' + dayName + '" has no tasks. Add at least one [TASK:] block.');
+      }
     }
 
     result.push({
@@ -2194,24 +2273,50 @@ function loadNextWeek() {
     scoreHistory: STATE.scoreHistory,
     blockNotes: STATE.blockNotes,
     review: STATE.review,
-    ideas: STATE.ideas
+    ideas: STATE.ideas,
+    settings: JSON.parse(JSON.stringify(STATE.settings))
   };
   STATE = buildDefaultState();
   STATE.scoreHistory = preserved.scoreHistory;
   STATE.blockNotes = preserved.blockNotes;
   STATE.review = preserved.review;
   STATE.ideas = preserved.ideas;
+  STATE.settings = preserved.settings;
+  STATE.onboarded = true;
   STATE.nextWeekData = null;
+  buildBlocksTemplate(STATE.settings);
   saveState();
   render();
   showAlert('Next week loaded. Good luck!');
+}
+
+function getPlanPrompt() {
+  var s = STATE.settings;
+  var ctx = [];
+  ctx.push('--- YOUR SCHEDULE CONTEXT ---');
+  ctx.push('Wake time: ' + (s.wakeTime || '07:30'));
+  ctx.push('Sleep time: ' + (s.sleepTime || '22:00'));
+  ctx.push('Phone lock until: ' + (s.phoneUnlockTime || '17:00'));
+  if (s.routineBlocks && s.routineBlocks.length) {
+    ctx.push('Daily routine includes:');
+    s.routineBlocks.forEach(function(b) {
+      ctx.push('  - ' + b.label + ' at ' + b.time + ' (' + b.duration + ' min)');
+    });
+  }
+  if (NN_TEMPLATE && NN_TEMPLATE.length) {
+    ctx.push('Non-negotiables they track daily:');
+    NN_TEMPLATE.forEach(function(nn) { ctx.push('  - ' + nn.label); });
+  }
+  ctx.push('---');
+  ctx.push('');
+  return ctx.join('\n') + PLAN_PROMPT;
 }
 
 function openPlanModal() {
   var modal = document.getElementById('plan-modal');
   if (!modal) return;
   var ta = document.getElementById('plan-prompt-textarea');
-  if (ta) ta.value = PLAN_PROMPT;
+  if (ta) ta.value = getPlanPrompt();
   modal.style.display = 'flex';
   showPlanStep(1);
 }
@@ -2279,6 +2384,10 @@ function confirmPlanImport() {
   if (!confirmBtn || !confirmBtn.dataset.parsed) return;
   var parsed = JSON.parse(confirmBtn.dataset.parsed);
   STATE.nextWeekData = parsed;
+  if (window._parsedSchema && window._parsedSchema.length) {
+    STATE.settings.customWorkBlocks = window._parsedSchema;
+    window._parsedSchema = null;
+  }
   saveState();
   closePlanModal();
   renderReviewTab();
@@ -2750,6 +2859,27 @@ document.addEventListener('click', function(e) {
   // Load next week
   if (t.id === 'load-next-week-btn') { loadNextWeek(); return; }
 
+  // Routine toggle cards
+  if (t.classList && t.classList.contains('routine-toggle')) {
+    t.classList.toggle('selected');
+    var timesEl = document.getElementById('ob-routine-times');
+    if (timesEl) {
+      var row = document.getElementById('ob-trow-' + t.dataset.id);
+      if (t.classList.contains('selected')) {
+        if (!row) {
+          var newRow = document.createElement('div');
+          newRow.className = 'routine-time-row';
+          newRow.id = 'ob-trow-' + t.dataset.id;
+          newRow.innerHTML = '<span>' + t.dataset.label + '</span><input type="time" id="ob-rtime-' + t.dataset.id + '" value="' + t.dataset.default + '">';
+          timesEl.appendChild(newRow);
+        }
+      } else {
+        if (row) row.remove();
+      }
+    }
+    return;
+  }
+
   // Onboarding navigation
   if (t.id === 'ob-next-1') { onboardingNext1(); return; }
   if (t.id === 'ob-next-2') { onboardingNext2(); return; }
@@ -2952,14 +3082,16 @@ if (!STATE.onboarded) openOnboarding();
           <div class="ob-label">Phone off until</div>
           <input type="time" id="ob-phone" class="ob-input" value="17:00">
         </div>
-        <div class="ob-field">
-          <div class="ob-label">Workout time</div>
-          <input type="time" id="ob-gym" class="ob-input" value="16:00">
+        <div class="routine-section-label">What's part of your daily routine?</div>
+        <div class="routine-toggle-grid" id="ob-routine-toggles">
+          <div class="routine-toggle" data-id="workout" data-label="Daily workout" data-duration="60" data-default="16:00" data-type="gym">Daily workout</div>
+          <div class="routine-toggle" data-id="walk" data-label="Walk / run" data-duration="45" data-default="17:15" data-type="walk">Walk / run</div>
+          <div class="routine-toggle" data-id="meditation" data-label="Meditation" data-duration="20" data-default="07:00" data-type="routine">Meditation</div>
+          <div class="routine-toggle" data-id="journaling" data-label="Journaling" data-duration="20" data-default="08:00" data-type="routine">Journaling</div>
+          <div class="routine-toggle" data-id="reading" data-label="Reading time" data-duration="60" data-default="20:00" data-type="routine">Reading time</div>
+          <div class="routine-toggle" data-id="wind-down" data-label="Evening wind-down" data-duration="60" data-default="21:00" data-type="routine">Evening wind-down</div>
         </div>
-        <div class="ob-field">
-          <div class="ob-label">Evening walk</div>
-          <input type="time" id="ob-walk" class="ob-input" value="17:15">
-        </div>
+        <div class="routine-toggle-times" id="ob-routine-times"></div>
       </div>
       <div class="onboarding-footer">
         <button class="plan-btn-primary" id="ob-next-1">Next &#x2192;</button>
