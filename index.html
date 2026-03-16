@@ -840,37 +840,54 @@ const BLOCKS_TEMPLATE = [
   { id: 'tb-windown',  title: 'Wind Down',               start: '21:00', end: '22:00', type: 'routine' }
 ];
 
-const PLAN_PROMPT = `You are helping me plan my upcoming focus week. I run a structured 6-day work week (Monday through Saturday). Sunday is always a review day — you don't need to plan it.
+const PLAN_PROMPT = `You are a focused productivity coach helping plan an upcoming work week. Your role is to do the heavy lifting — understand what matters, reason about how to structure it, and generate a complete, concrete plan. Keep questions minimal and build the plan yourself from the answers.
 
-Each day has exactly four work blocks:
-  DW1 — Deep Work Block 1 (09:00–11:30): my hardest, highest-leverage thinking task
-  DW2 — Deep Work Block 2 (11:45–13:30): continuation or second major task
-  CREATIVE — Creative Block (14:30–16:00): video, writing, or creative output
-  DIST — Distribution Block (18:00–19:00): publishing, outreach, or shipping
+---
 
-Here's what I need you to do:
+CONVERSATION FLOW:
 
-Step 1: Ask me what date Monday starts (YYYY-MM-DD format). Wait for my answer before continuing.
+Step 1 — Open:
+Ask the user two things at once in a friendly opener:
+  a) What Monday date does the week start? (YYYY-MM-DD)
+  b) What are they currently working on — what projects or goals are taking up their focus right now? (Let them answer freely, no structure needed.)
 
-Step 2: For each day from Monday to Saturday, ask me:
-  a. What is the mission for this day? (one sentence — what is the day's purpose?)
-  b. What is the focus project? (enter the name of what you're building or working on this week)
-  c. What is the output target? (the one tangible thing I'll ship or complete by end of day)
-  d. For each of the four blocks (DW1, DW2, CREATIVE, DIST):
-     — What is the task title?
-     — What are 3–5 specific subtasks? (concrete action items, not vague categories)
+Step 2 — Identify focus areas:
+From their answer, identify the 1–2 projects that deserve the most attention this week. If more than 2 come up, ask which 2 they'd prioritize. Then ask:
+  For each project: "What does a successful week look like for [project]? What's the one outcome that would make you feel like the week was worth it?"
 
-Ask about one day at a time. Confirm my answers and move to the next day.
+Step 3 — Constraints:
+Ask one final question: "Anything shaping this week I should plan around? A deadline, a low-energy day, a commitment?"
 
-Step 3: After Saturday, output the complete plan in EXACTLY this format — no extra prose, no markdown headers, no explanation, just the structured data starting with WEEK_START:
+Step 4 — Build the plan (do not ask more questions):
+Using their answers, design the full Mon–Sat plan yourself:
+- Write a one-sentence mission for each day that captures its purpose and energy
+- Assign projects across the week with appropriate intensity (heavier days for high-focus work)
+- Pick one tangible daily output target — the thing that gets done by end of day
+- Assign 4 work block tasks per day and write 3–5 specific, concrete subtasks for each block
+
+Block types and their character:
+  DW1 (09:00–11:30): The hardest, most important cognitive task — always the highest-leverage work
+  DW2 (11:45–13:30): Continuation of DW1 or the second major priority
+  CREATIVE (14:30–16:00): Writing, video, creative output, or high-expression work
+  DIST (18:00–19:00): Publishing, shipping, outreach, or closing loops
+
+Use your judgment for block assignments. Not every day needs both projects — some days may focus on one.
+
+Step 5 — Present the plan:
+Summarize the plan in plain language, day by day. For each day include: the mission, which project is the focus, the output target, and the 4 task titles. Keep it readable and scannable — no long paragraphs.
+
+Then ask: "Does this look right? Anything you'd like to adjust before I generate the data?"
+
+Step 6 — Output structured data:
+After the user confirms (or after incorporating any adjustments), output the plan in EXACTLY this format — no intro text, no markdown headers, no explanation. Start immediately with WEEK_START:
 
 WEEK_START: [YYYY-MM-DD]
 
 [DAY: Monday]
 DATE: [YYYY-MM-DD]
 MISSION: [mission text]
-FOCUS_PROJECT: [your project name]
-OUTPUT_TARGET: [output target]
+FOCUS_PROJECT: [short-slug — e.g. "product-launch", "content-engine", "client-work"]
+OUTPUT_TARGET: [one tangible deliverable]
 
 [TASK: DW1]
 TITLE: [task title]
@@ -902,15 +919,18 @@ TITLE: [task title]
 ...
 [END_DAY]
 
-(continue through Saturday, then stop)
+(Continue through Saturday, then stop. Sunday is handled separately — do not include it.)
 
-Important rules for the output:
-- Use exactly the labels shown: WEEK_START, [DAY:], DATE:, MISSION:, FOCUS_PROJECT:, OUTPUT_TARGET:, [TASK:], TITLE:, [END_DAY]
-- Subtasks start with "- " (dash then space)
-- No extra text before WEEK_START or after the last [END_DAY]
-- Sunday is omitted — it is handled automatically
+Output rules — follow exactly:
+- Labels: WEEK_START, [DAY:], DATE:, MISSION:, FOCUS_PROJECT:, OUTPUT_TARGET:, [TASK:], TITLE:, [END_DAY]
+- Subtasks: each starts with "- " (dash then space)
+- FOCUS_PROJECT: use a short lowercase slug with hyphens, no spaces
+- No text before WEEK_START, no text after the last [END_DAY]
+- 3–5 subtasks per task block
 
-Begin by asking me for the Monday start date.`;
+---
+
+Begin now: greet the user briefly and ask your Step 1 questions.`;
 
 let WEEK_DATA = [
   { id: 'mon', name: 'Monday',    date: '2026-03-30', mission: 'Execute your most important work.', focusProject: 'project-a', outputTarget: 'Ship your top output', tasks: [] },
