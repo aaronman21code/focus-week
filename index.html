@@ -553,8 +553,17 @@ input[type="file"]{display:none}
 .routine-toggle.selected{border-color:var(--accent);background:var(--accent-dim, rgba(99,102,241,0.12));color:var(--accent)}
 .routine-toggle-times{padding:6px 0 2px 4px;display:flex;flex-wrap:wrap;gap:10px}
 .routine-time-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)}
-.routine-time-row input{width:110px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;outline:none}
-.routine-time-row input:focus{border-color:var(--accent)}
+.ob-time-selects{display:flex;gap:4px;align-items:center;flex-wrap:nowrap}
+.ob-time-sel{padding:7px 10px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 7px center;padding-right:24px}
+.ob-time-sel:focus{border-color:var(--accent)}
+.ob-time-sel-h{width:56px}
+.ob-time-sel-m{width:64px}
+.ob-time-sel-ap{width:62px}
+.ob-dur-sel{width:82px}
+.custom-routine-row{display:flex;align-items:center;gap:8px;padding:6px 0;flex-wrap:wrap}
+.custom-routine-row .ob-input-sm{flex:1;min-width:120px;padding:7px 9px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.custom-routine-row .ob-input-sm:focus{border-color:var(--accent)}
+.custom-routine-row .ob-input-sm::placeholder{color:var(--text-dim)}
 
 /* ============ EMPTY WEEK STATE ============ */
 .empty-week-state{padding:32px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px}
@@ -895,7 +904,7 @@ CONVERSATION FLOW:
 
 Step 1 — Open:
 Ask the user two things at once in a friendly opener:
-  a) What Monday date does the week start? (YYYY-MM-DD)
+  a) What Monday are you planning for? (e.g. "March 30" or "next Monday" — any format works)
   b) What are they currently working on — what projects or goals are taking up their focus right now? (Let them answer freely, no structure needed.)
 
 Step 2 — Identify focus areas:
@@ -1135,6 +1144,43 @@ function minsToDisplay(m) {
 function minsToTime(m) {
   m = ((m % 1440) + 1440) % 1440;
   return String(Math.floor(m / 60)).padStart(2,'0') + ':' + String(m % 60).padStart(2,'0');
+}
+
+function buildTimeSelectHTML(baseId, def24) {
+  var parts = (def24 || '08:00').split(':');
+  var h24 = parseInt(parts[0], 10);
+  var mNum = parseInt(parts[1] ? parts[1].slice(0,2) : '0', 10);
+  var roundedM = String(Math.round(mNum / 15) * 15 % 60).padStart(2,'0');
+  if (roundedM === '60') roundedM = '00';
+  var ap = h24 >= 12 ? 'PM' : 'AM';
+  var h12 = h24 % 12 || 12;
+  var hourOpts = '';
+  for (var i = 1; i <= 12; i++) {
+    hourOpts += '<option value="' + i + '"' + (i === h12 ? ' selected' : '') + '>' + i + '</option>';
+  }
+  var minOpts = ['00','15','30','45'].map(function(m) {
+    return '<option value="' + m + '"' + (m === roundedM ? ' selected' : '') + '>:' + m + '</option>';
+  }).join('');
+  var apOpts = ['AM','PM'].map(function(a) {
+    return '<option value="' + a + '"' + (a === ap ? ' selected' : '') + '>' + a + '</option>';
+  }).join('');
+  return '<div class="ob-time-selects">' +
+    '<select class="ob-time-sel ob-time-sel-h" id="' + baseId + '-h">' + hourOpts + '</select>' +
+    '<select class="ob-time-sel ob-time-sel-m" id="' + baseId + '-m">' + minOpts + '</select>' +
+    '<select class="ob-time-sel ob-time-sel-ap" id="' + baseId + '-ap">' + apOpts + '</select>' +
+    '</div>';
+}
+
+function readTimeSelect(baseId) {
+  var hEl = document.getElementById(baseId + '-h');
+  var mEl = document.getElementById(baseId + '-m');
+  var apEl = document.getElementById(baseId + '-ap');
+  if (!hEl || !mEl || !apEl) return null;
+  var h = parseInt(hEl.value, 10);
+  var ap = apEl.value;
+  if (ap === 'PM' && h !== 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return String(h).padStart(2,'0') + ':' + mEl.value;
 }
 
 function minsToHHMM(m) {
@@ -2042,12 +2088,10 @@ function applyCustomNNs(newNNs) {
 }
 
 function onboardingNext1() {
-  var wake  = (document.getElementById('ob-wake')  || {}).value;
-  var sleep = (document.getElementById('ob-sleep') || {}).value;
-  var phone = (document.getElementById('ob-phone') || {}).value;
-  if (wake)  STATE.settings.wakeTime        = wake;
-  if (sleep) STATE.settings.sleepTime       = sleep;
-  if (phone) STATE.settings.phoneUnlockTime = phone;
+  var wake  = readTimeSelect('ob-wake');
+  var sleep = readTimeSelect('ob-sleep');
+  if (wake)  STATE.settings.wakeTime  = wake;
+  if (sleep) STATE.settings.sleepTime = sleep;
   STATE.settings.routineBlocks = readRoutineToggles();
   buildBlocksTemplate(STATE.settings);
   saveState();
@@ -2056,19 +2100,46 @@ function onboardingNext1() {
 
 function readRoutineToggles() {
   var result = [];
-  var toggles = document.querySelectorAll('#ob-routine-toggles .routine-toggle.selected');
-  toggles.forEach(function(t) {
+  document.querySelectorAll('#ob-routine-toggles .routine-toggle.selected').forEach(function(t) {
     var id = t.dataset.id;
-    var timeEl = document.getElementById('ob-rtime-' + id);
     result.push({
-      id: id,
-      label: t.dataset.label,
-      time: timeEl ? timeEl.value : t.dataset.default,
-      duration: parseInt(t.dataset.duration, 10),
-      type: t.dataset.type
+      id: id, label: t.dataset.label,
+      time: readTimeSelect('ob-rtime-' + id) || t.dataset.default,
+      duration: parseInt(t.dataset.duration, 10), type: t.dataset.type
+    });
+  });
+  document.querySelectorAll('#ob-custom-routines .custom-routine-row').forEach(function(row) {
+    var uid = row.dataset.uid;
+    var nameEl = row.querySelector('.custom-routine-name');
+    var name = nameEl ? nameEl.value.trim() : '';
+    if (!name) return;
+    var durEl = document.getElementById('ob-crdur-' + uid);
+    result.push({
+      id: uid, label: name,
+      time: readTimeSelect('ob-crtime-' + uid) || '08:00',
+      duration: durEl ? parseInt(durEl.value, 10) : 60, type: 'routine'
     });
   });
   return result.length ? result : null;
+}
+
+function addCustomRoutineRow() {
+  var container = document.getElementById('ob-custom-routines');
+  if (!container) return;
+  var uid = 'cr-' + Date.now();
+  var div = document.createElement('div');
+  div.className = 'custom-routine-row';
+  div.dataset.uid = uid;
+  div.innerHTML =
+    '<input type="text" class="custom-routine-name ob-input-sm" placeholder="e.g. Sauna, Prayer\u2026">' +
+    buildTimeSelectHTML('ob-crtime-' + uid, '08:00') +
+    '<select class="ob-time-sel ob-dur-sel" id="ob-crdur-' + uid + '">' +
+      '<option value="15">15 min</option><option value="30">30 min</option>' +
+      '<option value="45">45 min</option><option value="60" selected>60 min</option>' +
+      '<option value="90">90 min</option></select>' +
+    '<button class="ob-remove-btn" data-remove-uid="' + uid + '">\u2715</button>';
+  container.appendChild(div);
+  div.querySelector('.custom-routine-name').focus();
 }
 
 function onboardingNext2() {
@@ -2859,6 +2930,14 @@ document.addEventListener('click', function(e) {
   // Load next week
   if (t.id === 'load-next-week-btn') { loadNextWeek(); return; }
 
+  // Custom routine row: add / remove
+  if (t.id === 'ob-routine-add') { addCustomRoutineRow(); return; }
+  if (t.dataset.removeUid) {
+    var toRemove = document.querySelector('[data-uid="' + t.dataset.removeUid + '"]');
+    if (toRemove) toRemove.remove();
+    return;
+  }
+
   // Routine toggle cards (Step 1 — lifestyle)
   if (t.classList && t.classList.contains('routine-toggle') && t.closest('#ob-routine-toggles')) {
     t.classList.toggle('selected');
@@ -2870,7 +2949,7 @@ document.addEventListener('click', function(e) {
           var newRow = document.createElement('div');
           newRow.className = 'routine-time-row';
           newRow.id = 'ob-trow-' + t.dataset.id;
-          newRow.innerHTML = '<span>' + t.dataset.label + '</span><input type="time" id="ob-rtime-' + t.dataset.id + '" value="' + t.dataset.default + '">';
+          newRow.innerHTML = '<span>' + t.dataset.label + '</span>' + buildTimeSelectHTML('ob-rtime-' + t.dataset.id, t.dataset.default);
           timesEl.appendChild(newRow);
         }
       } else {
@@ -3090,15 +3169,19 @@ if (!STATE.onboarded) openOnboarding();
       <div class="onboarding-body">
         <div class="ob-field">
           <div class="ob-label">Wake time</div>
-          <input type="time" id="ob-wake" class="ob-input" value="07:30">
+          <div class="ob-time-selects" id="ob-wake">
+            <select class="ob-time-sel ob-time-sel-h" id="ob-wake-h"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7" selected>7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>
+            <select class="ob-time-sel ob-time-sel-m" id="ob-wake-m"><option value="00">:00</option><option value="15">:15</option><option value="30" selected>:30</option><option value="45">:45</option></select>
+            <select class="ob-time-sel ob-time-sel-ap" id="ob-wake-ap"><option value="AM" selected>AM</option><option value="PM">PM</option></select>
+          </div>
         </div>
         <div class="ob-field">
           <div class="ob-label">Sleep time</div>
-          <input type="time" id="ob-sleep" class="ob-input" value="22:00">
-        </div>
-        <div class="ob-field">
-          <div class="ob-label">Phone off until</div>
-          <input type="time" id="ob-phone" class="ob-input" value="17:00">
+          <div class="ob-time-selects" id="ob-sleep">
+            <select class="ob-time-sel ob-time-sel-h" id="ob-sleep-h"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10" selected>10</option><option value="11">11</option><option value="12">12</option></select>
+            <select class="ob-time-sel ob-time-sel-m" id="ob-sleep-m"><option value="00" selected>:00</option><option value="15">:15</option><option value="30">:30</option><option value="45">:45</option></select>
+            <select class="ob-time-sel ob-time-sel-ap" id="ob-sleep-ap"><option value="AM">AM</option><option value="PM" selected>PM</option></select>
+          </div>
         </div>
         <div class="routine-section-label">What's part of your daily routine?</div>
         <div class="routine-toggle-grid" id="ob-routine-toggles">
@@ -3110,6 +3193,8 @@ if (!STATE.onboarded) openOnboarding();
           <div class="routine-toggle" data-id="wind-down" data-label="Evening wind-down" data-duration="60" data-default="21:00" data-type="routine">Evening wind-down</div>
         </div>
         <div class="routine-toggle-times" id="ob-routine-times"></div>
+        <div id="ob-custom-routines"></div>
+        <button class="nn-add-btn" id="ob-routine-add">&#xFF0B; Add your own</button>
       </div>
       <div class="onboarding-footer">
         <button class="plan-btn-primary" id="ob-next-1">Next &#x2192;</button>
@@ -3160,15 +3245,15 @@ if (!STATE.onboarded) openOnboarding();
           <div class="onboarding-dot active" id="ob-dot-3c"></div>
         </div>
         <div class="onboarding-title">You're all set!</div>
-        <div class="onboarding-desc">Now let's plan your first week. Copy the AI prompt, paste it into Claude or ChatGPT, answer the questions day by day, then paste the output back here to populate your week.</div>
+        <div class="onboarding-desc">Your settings are saved. Next, you'll have a short conversation with an AI that designs your full daily schedule and week plan — no spreadsheets needed.</div>
       </div>
       <div class="onboarding-body">
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:12px 14px;font-size:12px;color:var(--text-muted);line-height:1.6">
           <strong style="color:var(--text)">How it works:</strong><br>
           1. Click "Plan My First Week" below<br>
-          2. The planning tool opens — copy the prompt<br>
-          3. Paste into Claude or ChatGPT and answer the questions<br>
-          4. Paste the AI output back into the tool to import your week
+          2. Copy the prompt and paste it into Claude or ChatGPT<br>
+          3. Answer a few questions — the AI builds the full plan for you<br>
+          4. Copy the structured output it produces and paste it back here
         </div>
       </div>
       <div class="onboarding-footer">
