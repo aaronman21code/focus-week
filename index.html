@@ -820,25 +820,31 @@ let NN_TEMPLATE = [
   { id: 'nn-sleep',    label: 'Sleep on time' },
 ];
 
-const BLOCKS_TEMPLATE = [
-  { id: 'tb-water',    title: 'Water',                   start: '07:30', end: '07:35', type: 'routine' },
-  { id: 'tb-sun',      title: 'Sunlight',                start: '07:35', end: '07:40', type: 'routine' },
-  { id: 'tb-workout',  title: 'Activation Workout',      start: '07:40', end: '07:55', type: 'routine' },
-  { id: 'tb-bible',    title: 'Bible + Prayer',          start: '08:00', end: '08:20', type: 'routine' },
-  { id: 'tb-breakfast',title: 'Breakfast + Coffee',      start: '08:20', end: '08:45', type: 'meal' },
-  { id: 'tb-daymission',title: 'Review Day Mission',     start: '08:45', end: '09:00', type: 'routine' },
-  { id: 'tb-dw1',      title: 'Deep Work Block 1',       start: '09:00', end: '11:30', type: 'deep-work', taskId: 'dw1' },
-  { id: 'tb-reset',    title: 'Reset / Stretch / Hydrate', start: '11:30', end: '11:45', type: 'reset' },
-  { id: 'tb-dw2',      title: 'Deep Work Block 2',       start: '11:45', end: '13:30', type: 'deep-work', taskId: 'dw2' },
-  { id: 'tb-lunch',    title: 'Lunch',                   start: '13:30', end: '14:30', type: 'meal' },
-  { id: 'tb-creative', title: 'Creative Block',          start: '14:30', end: '16:00', type: 'creative', taskId: 'creative' },
-  { id: 'tb-gym',      title: 'Gym',                     start: '16:00', end: '17:00', type: 'gym' },
-  { id: 'tb-walk',     title: 'Sunset Walk',             start: '17:15', end: '18:00', type: 'walk' },
-  { id: 'tb-dist',     title: 'Distribution Block',      start: '18:00', end: '19:00', type: 'distribution', taskId: 'dist' },
-  { id: 'tb-dinner',   title: 'Dinner',                  start: '19:00', end: '20:00', type: 'meal' },
-  { id: 'tb-reading',  title: 'Reading / Thinking',      start: '20:00', end: '21:00', type: 'routine' },
-  { id: 'tb-windown',  title: 'Wind Down',               start: '21:00', end: '22:00', type: 'routine' }
-];
+let BLOCKS_TEMPLATE = [];
+
+function buildBlocksTemplate(s) {
+  var wake    = s.wakeTime       || '07:30';
+  var gym     = s.gymTime        || '16:00';
+  var gymEnd  = minsToTime(timeToMins(gym)  + 60);
+  var walk    = s.sunsetWalkTime || '17:15';
+  var walkEnd = minsToTime(timeToMins(walk) + 45);
+  var sleep   = s.sleepTime      || '22:00';
+  BLOCKS_TEMPLATE = [
+    { id: 'tb-morning',    title: 'Morning Routine',            start: wake,    end: '08:45', type: 'routine'                      },
+    { id: 'tb-daymission', title: 'Review Day Mission',         start: '08:45', end: '09:00', type: 'routine'                      },
+    { id: 'tb-dw1',        title: 'Deep Work Block 1',          start: '09:00', end: '11:30', type: 'deep-work',   taskId: 'dw1'      },
+    { id: 'tb-reset',      title: 'Reset / Stretch / Hydrate',  start: '11:30', end: '11:45', type: 'reset'                        },
+    { id: 'tb-dw2',        title: 'Deep Work Block 2',          start: '11:45', end: '13:30', type: 'deep-work',   taskId: 'dw2'      },
+    { id: 'tb-lunch',      title: 'Lunch',                      start: '13:30', end: '14:30', type: 'meal'                         },
+    { id: 'tb-creative',   title: 'Creative Block',             start: '14:30', end: gym,     type: 'creative',    taskId: 'creative' },
+    { id: 'tb-gym',        title: 'Workout',                    start: gym,     end: gymEnd,  type: 'gym'                          },
+    { id: 'tb-walk',       title: 'Evening Walk',               start: walk,    end: walkEnd, type: 'walk'                         },
+    { id: 'tb-dist',       title: 'Distribution Block',         start: '18:00', end: '19:00', type: 'distribution', taskId: 'dist'     },
+    { id: 'tb-dinner',     title: 'Dinner',                     start: '19:00', end: '20:00', type: 'meal'                         },
+    { id: 'tb-reading',    title: 'Reading / Thinking',         start: '20:00', end: '21:00', type: 'routine'                      },
+    { id: 'tb-windown',    title: 'Wind Down',                  start: '21:00', end: sleep,   type: 'routine'                      }
+  ];
+}
 
 const PLAN_PROMPT = `You are a focused productivity coach helping plan an upcoming work week. Your role is to do the heavy lifting — understand what matters, reason about how to structure it, and generate a complete, concrete plan. Keep questions minimal and build the plan yourself from the answers.
 
@@ -1083,6 +1089,10 @@ function minsToDisplay(m) {
   const ampm = h < 12 ? 'AM' : 'PM';
   const hh = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${hh}:${String(min).padStart(2,'0')} ${ampm}`;
+}
+function minsToTime(m) {
+  m = ((m % 1440) + 1440) % 1440;
+  return String(Math.floor(m / 60)).padStart(2,'0') + ':' + String(m % 60).padStart(2,'0');
 }
 
 function minsToHHMM(m) {
@@ -1990,13 +2000,17 @@ function applyCustomNNs(newNNs) {
 }
 
 function onboardingNext1() {
-  // Save schedule settings from step 1
-  var wake = (document.getElementById('ob-wake') || {}).value;
+  var wake  = (document.getElementById('ob-wake')  || {}).value;
   var sleep = (document.getElementById('ob-sleep') || {}).value;
   var phone = (document.getElementById('ob-phone') || {}).value;
-  if (wake) STATE.settings.wakeTime = wake;
-  if (sleep) STATE.settings.sleepTime = sleep;
+  var gym   = (document.getElementById('ob-gym')   || {}).value;
+  var walk  = (document.getElementById('ob-walk')  || {}).value;
+  if (wake)  STATE.settings.wakeTime        = wake;
+  if (sleep) STATE.settings.sleepTime       = sleep;
   if (phone) STATE.settings.phoneUnlockTime = phone;
+  if (gym)   STATE.settings.gymTime         = gym;
+  if (walk)  STATE.settings.sunsetWalkTime  = walk;
+  buildBlocksTemplate(STATE.settings);
   saveState();
   showOnboardingStep(2);
 }
@@ -2776,6 +2790,7 @@ document.addEventListener('change', function(e) {
   };
   if (settingsMap[t.id]) {
     STATE.settings[settingsMap[t.id]] = t.value;
+    buildBlocksTemplate(STATE.settings);
     saveState(); return;
   }
 
@@ -2903,6 +2918,7 @@ setInterval(function() {
 
 loadState();
 if (STATE.settings.customNNs) NN_TEMPLATE = STATE.settings.customNNs;
+buildBlocksTemplate(STATE.settings);
 applyTheme(STATE.settings.theme || 'dark');
 render();
 if (!STATE.onboarded) openOnboarding();
@@ -2935,6 +2951,14 @@ if (!STATE.onboarded) openOnboarding();
         <div class="ob-field">
           <div class="ob-label">Phone off until</div>
           <input type="time" id="ob-phone" class="ob-input" value="17:00">
+        </div>
+        <div class="ob-field">
+          <div class="ob-label">Workout time</div>
+          <input type="time" id="ob-gym" class="ob-input" value="16:00">
+        </div>
+        <div class="ob-field">
+          <div class="ob-label">Evening walk</div>
+          <input type="time" id="ob-walk" class="ob-input" value="17:15">
         </div>
       </div>
       <div class="onboarding-footer">
